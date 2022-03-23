@@ -74,6 +74,7 @@ class step_analytics:
         self.positive_step = True
         self.gain = "Navnet på pådraget"  # Navn på pådrags organ
         self.measured_value = "Navn på målt verdi"  # Navn på måleverdien
+        self.prosent63 = []
 
     # Find and return the position in the DF where the step happens
     def find_step(self):
@@ -143,6 +144,32 @@ class step_analytics:
         else:
             self.step_df['peak'] = self.step_df[self.measured_value][(self.step_df[self.measured_value].shift(1) > self.step_df[self.measured_value]) &(self.step_df[self.measured_value].shift(-1) > self.step_df[self.measured_value])]
 
+    def find_tau(self, resp):
+        self.tau = self.step_df.iloc[self.prosent63[0]]['Time'] - self.step_df.iloc[resp]['Time']
+
+    def find_theta(self, resp):
+        self.theta = self.step_df.iloc[resp]["Time"] - self.step_df.iloc[self.start[0]]["Time"]
+
+    def find_63(self):
+        # Find 63% value and keep index and value
+        if self.positive_step:
+            self.six = self.dY * 0.63 + self.start[1]
+
+            for i in range(1, len(self.step_df)):
+                if self.six <= self.step_df.iloc[-i][self.measured_value]:
+                    self.prosent63.append(-i)
+                    self.prosent63.append(self.step_df.iloc[-i][self.measured_value])
+                    break
+
+        else:
+            self.six = -self.dY * 0.63 + self.start[1]
+
+            for i in range(1, len(self.step_df)):
+                if self.six >= self.step_df.iloc[-i][self.measured_value]:
+                    self.prosent63.append(-i)
+                    self.prosent63.append(self.step_df.iloc[-i][self.measured_value])
+                    break
+
     def find_parameters(self):
 
         # Change index from timestamp to sampling time
@@ -191,37 +218,13 @@ class step_analytics:
         # df2['index_col'] = df2.index
         # Copy index to a column, to make it easier to do math on it
         self.step_df.index = self.step_df["Time"]
-        # time = (df2.iloc[response[0]]['index_col'] - df2.iloc[start[0]]['index_col'])
-        self.theta = self.step_df.iloc[response]["Time"] - self.step_df.iloc[self.start[0]]["Time"]
-        #
-        #
-        # # Calculate value for 63%
 
-        #
-        self.prosent63 = []
-
-        # Find 63% value and keep index and value
-        if self.positive_step:
-            self.six = self.dY * 0.63 + self.start[1]
-
-            for i in range(1, len(self.step_df)):
-                if self.six <= self.step_df.iloc[-i][self.measured_value]:
-                    self.prosent63.append(-i)
-                    self.prosent63.append(self.step_df.iloc[-i][self.measured_value])
-                    break
-
-        else:
-            self.six = -self.dY * 0.63 + self.start[1]
-
-            for i in range(1, len(self.step_df)):
-                if self.six >= self.step_df.iloc[-i][self.measured_value]:
-                    self.prosent63.append(-i)
-                    self.prosent63.append(self.step_df.iloc[-i][self.measured_value])
-                    break
+        self.find_theta(response)
+        self.find_63()
 
         # All values aquired, and you know what that means...
         # MATH TIME
-        self.tau = self.step_df.iloc[self.prosent63[0]]['Time'] - self.step_df.iloc[response]['Time']
+        self.find_tau(response)
         self.k_m = self.k / self.tau
         # 4 x tau  -> 98% av respons
         tc = self.theta
@@ -233,6 +236,8 @@ class step_analytics:
 
     # Setters and getters for important vars
     # Doing it this way, we can automagicly re-calculate when vars are changed
+
+
 
     def __str__(self):
         return (
