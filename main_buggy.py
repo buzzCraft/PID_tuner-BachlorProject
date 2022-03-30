@@ -183,6 +183,7 @@ class step_analytics:
         # Adding a 5% dead-band
         self._factor = self.dY * 0.1
 
+
     def find_28_63(self):
         # Find 63% and 28% value and keep index and value
         if self.positive_step:
@@ -264,8 +265,8 @@ class step_analytics:
         # Find time and value for 28% and 63% of the step
         self.find_28_63()
         # Find theta
-        self.find_tau(response)
-        self.find_theta(response)
+        self.find_tau()
+        self.find_theta()
 
 
 
