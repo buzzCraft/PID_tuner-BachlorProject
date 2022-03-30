@@ -58,6 +58,13 @@ def multiPlot(plot_list, rows=3):
 
 
 class step_analytics:
+    # TODO - Implement the 5% band in the top as a variabel
+    # TODO - Check usage of factor
+    # TODO - Check usage of band
+    # TODO - Seperate automatic calculation of parameters form finding parameters
+    # TODO - Make setters for "response start" and "max_value"
+    #           The setters should recalculate everything
+
     def __init__(self, df, sampling_time, step_from_to, factor=0.1):
         self.step_df = df  # dataframe with one step
         self._step_from = step_from_to[0]  # Step from value
@@ -91,7 +98,6 @@ class step_analytics:
 
     # Change the index of the DF to be == with sampling time
     # since you can argue that timestamps isnt to important for the test
-    # TODO - Would maybe be smart to save test start timestamp for report?
     def change_index(self):
         """"
         Set df[-1] (the end of dataframe) = 0
@@ -113,7 +119,7 @@ class step_analytics:
         :param show: If true, show plot, false return plot:
         :return plt:
         """
-        print("Plotting")
+
         ax = sns.lineplot(data=self.step_df[self.measured_value], color="r")
         _ = ax.vlines(x=40, ymin=40, ymax=50, colors='g')
 
@@ -131,21 +137,36 @@ class step_analytics:
         :return plt:
         """
 
-        print("Plotting")
+
         # Plotting the step
         ax = sns.lineplot(data=self.step_df[self.measured_value], color="r")
         # Polotting point for when we choose step response
-        _ = ax.plot(self.theta, self.start[1], marker="x", color="b")
+        _ = ax.plot(-self.response * self._sampling_time, self.step_df.iloc[self.response][self.measured_value], marker="x", color="b")
         # Plotting vertical and hrisontal lines for 63% point
-        _ = ax.hlines(self.prosent63[1], xmin=0, xmax=(self.prosent63[1]) * self._sampling_time, color="grey",
+        _ = ax.hlines(self.prosent63[1], xmin=0, xmax=(-self.prosent63[0]) * self._sampling_time, color="grey",
                       linestyles='dashed')
-        _ = ax.vlines((self.prosent63[1] - 1) * self._sampling_time, ymin=self.start[1] * 0.99, ymax=self.prosent63[1],
+        _ = ax.vlines((-self.prosent63[0]) * self._sampling_time, ymin=self.start[1] * 0.99, ymax=self.prosent63[1],
                       color="grey",
                       linestyles='dashed')
+
+        # Text test
+       # text(x, y, s, fontdict=None, **kwargs)
+        _ = ax.axhline(y=self.max_val, color='r', linestyle='-')
+        _ = ax.axhline(y=self.dY*0.95+self.start[1], color='y', linestyle='-')
+        _ = ax.text(-self.response * self._sampling_time * 1.2, self.max_val,
+                    f'Max val = {self.max_val} ', fontsize=6, va="top")
+        _ = ax.text(-self.response * self._sampling_time * 1.2, self.dY*0.95+self.start[1],
+                    f'95% = {self.dY*0.95+self.start[1]} ', fontsize=6, va="top")
+        _ = ax.text(-self.response * self._sampling_time*1.2, self.step_df.iloc[self.response][self.measured_value], f'{self.step_df.iloc[self.response][self.measured_value]} ', fontsize=6, va = "center")
+        _ = ax.text((-self.response * self._sampling_time)+5, self.start[1], f'ϴ: {self.theta} ', fontsize=6, va = "top")
+        _ = ax.text(((-self.prosent63[0]) * self._sampling_time)+5, self.start[1], f'τ: {self.tau}', fontsize=6, va="bottom")
+        _ = ax.text(((-self.prosent63[0]) * self._sampling_time)+5, self.prosent63[1], f'63% value\n{self.prosent63[1]}', fontsize=6, va="top")
+        # Plot cho0sen max point
+        _ = ax.plot()
         # Plotting points for local max/min
         _ = ax.scatter(self.step_df.index, self.step_df["peak"], c='g')
 
-        print(f'Xmax_h =  {(self.prosent63[1]) * self._sampling_time}')
+
 
         # New ax for the step variabel
         ax2 = plt.twinx()
@@ -199,8 +220,7 @@ class step_analytics:
         :return:
         """
         self.tau = self.step_df.iloc[self.prosent63[0]]['Time'] - self.step_df.iloc[self.response]['Time']
-        print(self.step_df.iloc[self.prosent63[0]]['Time'])
-        print(self.step_df.iloc[self.response]['Time'])
+
 
     def find_theta(self):
         """
@@ -219,8 +239,11 @@ class step_analytics:
 
         # Find 63% value and keep index and value
         if self.positive_step:
-            self.six = self.dY * 0.63 + self.start[1] - ( self.dY*0.05)
-            print(f'63% = {self.six}')
+            dy2 = self.dY-self.dY*0.05
+
+            #self.six = self.dY * 0.63 + self.start[1] - (self.dY*0.05)
+            self.six = dy2 * 0.63 + self.start[1]
+
 
             # Loop the df
             for i in range(1, len(self.step_df)):
@@ -235,11 +258,12 @@ class step_analytics:
                     self.prosent63.append(-i)
                     # Add value to the list
                     self.prosent63.append(self.step_df.iloc[-i][self.measured_value])
-                    print(f' 63% value = {self.prosent63[1]}')
+
                     break
 
         else:
-            self.six = -self.dY * 0.63 + self.start[1]
+            dy2 = self.dY-self.dY*0.05
+            self.six = dy2 * 0.63 + self.start[1]
             # Loop the df
             for i in range(1, len(self.step_df)):
                 if self.six >= self.step_df.iloc[-i][self.measured_value]:
@@ -280,8 +304,6 @@ class step_analytics:
         else:
             if self.positive_step:
                 self.max_val = self.step_df[self.measured_value].max()
-                print("Here")
-                print(self.max_val)
             else:
                 self.max_val = self.step_df[self.measured_value].min()
 
@@ -306,18 +328,16 @@ class step_analytics:
         """
         if calculate_factor:
             self._factor = self.dY * 0.05
-            print(f'Factor = {self._factor}')
+
         else:
             pass
 
     def find_responce(self):
         for i in range(-self.start[0], len(self.step_df)):
-            print(abs(self.start[1] - self.step_df.iloc[-i][self.measured_value]))
             if abs(self.start[1] - self.step_df.iloc[-i][self.measured_value]) >= self._factor:
                 self.response = -i
 
-                print(
-                    f'Response value = {self.step_df.iloc[-i][self.measured_value]} Response time = {i * self._sampling_time}')
+
                 break
 
     def find_parameters(self):
@@ -334,7 +354,7 @@ class step_analytics:
         step_start = self.find_step()
         # Add it to list start to be able to access it easy later on
         self.start = [step_start, self.step_df.iloc[step_start][self.measured_value]]
-        print(self.start[1], self.step_df.iloc[step_start][self.gain])
+
 
         # Find maxima value
         # Max for positive step
@@ -358,7 +378,7 @@ class step_analytics:
         self.find_delta()
 
         # Find where we get the first sign of an response
-        print(self.start[0])
+
         self.find_responce()
 
         # Copy index to a column, to make it easier to do math on it
@@ -395,7 +415,10 @@ class step_analytics:
         return (
             f'{self._step_from} -> {self._step_to} \n Theta: {self.theta}\n Tau: {self.tau}\n K : {self.k}\n K* : {self.k_m}\n'
             f' Kc : {self.k_c}\n Ti : {self.t_i}'
-            f'\nFor debug:\n Max = {self.max_val}\n 63% sample point = {self.prosent63[0]} and value = {self.prosent63[1]}')
+            f'\nFor debug:\nMax = {self.max_val}\n63% sample point = {self.prosent63[0]} and value = {self.prosent63[1]}\n'
+            f'Theta_h =  {self.theta} star_val= {self.start[1]}\n63% tid : {self.step_df.iloc[self.prosent63[0]]["Time"]} Response tid : {self.step_df.iloc[self.response]["Time"]}'
+            f'\nStart verdi = {self.start[1]}  63% value = {self.prosent63[1]} Factor = {self._factor}'
+            f'\nResponse value = {self.step_df.iloc[self.response][self.measured_value]} Response time = {-self.response * self._sampling_time}')
 
     @property
     def factor(self):
@@ -417,7 +440,8 @@ class step_analytics:
 
 if __name__ == "__main__":
     #df = read("https://raw.githubusercontent.com/buzzCraft/RobTek-prosjekt/main/StepRespons%2003032022_2.csv")
-    df = read("Step_A_220320222.csv")
+    #df = read("Step_A_220320222.csv")
+    df = read("Step_B_30032022.csv")
     navn = {
         "SB401": "Ventilåpning til bygg E",
         "RT503": "Retur radiator",
@@ -428,15 +452,10 @@ if __name__ == "__main__":
     single_step = []
     list_of_steps = []
     for step in steps_done:
-        single_step.append(step_analytics(find_step(df, step), 10, step, 0.3))
-    single_step[0].measured_value = "RT503"
-    single_step[0].gain = "SB401"
-    print(single_step[0].calculate(band=True))
-    single_step[0].plot_detailed(True)
+        single_step.append(step_analytics(find_step(df, step), 10, step, 0.1))
+    n = 0
+    single_step[n].measured_value = "RT503"
+    single_step[n].gain = "SB401"
+    print(single_step[n].calculate(band=True))
+    single_step[n].plot_detailed(True)
 
-#
-# test = step("w", [40, 20], 0.3)
-#
-# print(test.factor)
-# test.factor = 34
-# print(test.factor)
