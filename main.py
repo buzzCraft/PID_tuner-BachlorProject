@@ -13,6 +13,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
+
 matplotlib.use('Qt5Agg')
 from PyQt5.QtWidgets import QFileDialog
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationToolbar2QT as Navi
@@ -23,17 +24,14 @@ import pid_calc as pid
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
+
 class MplCanvas(FigureCanvasQTAgg):
 
     def __init__(self, parent=None, width=5, height=4, dpi=100):
         fig = Figure(figsize=(width, height), dpi=dpi)
         self.axes = fig.add_subplot(111)
 
-
         super(MplCanvas, self).__init__(fig)
-
-
-
 
 
 class Ui_MainWindow(object):
@@ -153,7 +151,8 @@ class Ui_MainWindow(object):
         self.Sb_sampling_time.setObjectName("Sb_sampling_time")
         self.horizontalLayout_9.addWidget(self.Sb_sampling_time)
         self.horizontalLayout_12.addLayout(self.horizontalLayout_9)
-        spacerItem5 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Minimum)
+        spacerItem5 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.MinimumExpanding,
+                                            QtWidgets.QSizePolicy.Minimum)
         self.horizontalLayout_12.addItem(spacerItem5)
         self.verticalLayout_4.addLayout(self.horizontalLayout_12)
         self.verticalLayout_6.addLayout(self.verticalLayout_4)
@@ -275,28 +274,24 @@ class Ui_MainWindow(object):
 
         # Bindings
         self.pB_clear.clicked.connect(self.clear)
+        self.actionClose.triggered.connect(self.clear)
         self.pB_calculate.clicked.connect(self.calculating)
-        #self.pB_calculate.clicked.connect(self.get_file)
-        self.actionOpen.triggered.connect(self.get_file)
+        self.pB_reset.clicked.connect(self.reset_onclick)
+        # self.pB_calculate.clicked.connect(self.get_file)
+        self.actionImport_CSV_file.triggered.connect(self.get_file)
+        self.actionExit.triggered.connect(MainWindow.close)
+        self.MaxValueSlider.valueChanged.connect(self.change_sb_max)
+        self.ResponseValueSlider.valueChanged.connect(self.change_sb_resp)
+        self.sB_max.valueChanged.connect(self.change_slider_max)
+        self.sB_theta.valueChanged.connect(self.change_slider_resp)
 
-        # Trying to make plotting work
-        # self.canvas = PlotCanvase(self)
-        # self.toolbar = self.canvas
-        # self.drawing_space.addItem(self.toolbar)
-        # sc = PlotCanvas(self, width=5, height=4, dpi=100)
-        # sc.axes.plot([0, 1, 2, 3, 4], [10, 1, 20, 3, 40])
-        #
-        # # Create toolbar, passing canvas as first parament, parent (self, the MainWindow) as second.
-        # toolbar = Navi(sc, self)
-        #
-        # self.horizontalLayout_10.addItem(toolbar)
-        # self.horizontalLayout_10.addItem(sc)
-        #
-        # wi = QtWidgets.QVBoxLayout()
-        # wi.setLayout(self.horizontalLayout_10)
-        # self.setCentralWidget(wi)
+
+
+
+
+
         self.sc = MplCanvas(self, width=5, height=4, dpi=100)
-        # self.sc.axes.plot([0,1,2,3,4], [10,1,20,3,40])
+
 
         # Create toolbar, passing canvas as first parament, parent (self, the MainWindow) as second.
         self.toolbar = Navi(self.sc, MainWindow)
@@ -310,24 +305,36 @@ class Ui_MainWindow(object):
         # widget.setLayout(layout)
         self.wi_plot.setLayout(self.layout)
         # MainWindow.setCentralWidget(widget)
-
-       # self.show()
-
-
+        self.k = False
+        self.ti = False
 
 
-
-
+    def reset_onclick(self):
+        self.reset_values()
+        self.step = pid.read(self.filname)
+        self.calculating()
+    def change_sb_max(self):
+        self.sB_max.setValue(int(self.MaxValueSlider.value()))
+        self.calculating()
+    def change_sb_resp(self):
+        self.sB_theta.setValue(self.ResponseValueSlider.value())
+        self.calculating()
+    def change_slider_max(self):
+        self.MaxValueSlider.setValue(int(self.sB_max.value()))
+        self.calculating()
+    def change_slider_resp(self):
+        self.ResponseValueSlider.setValue(self.sB_theta.value())
+        self.calculating()
 
     def get_file(self):
-        self.filname = QFileDialog.getOpenFileName(filter= "csv (*.csv)")[0]
+        self.filname = QFileDialog.getOpenFileName(filter="csv (*.csv)")[0]
         if self.filname:
             self.step = pid.read(self.filname)
             self.update_combo_box(self.step.columns)
             self.suggest_values()
 
-            #print()
-            #self.write_to_box(self.step.head())
+            # print()
+            # self.write_to_box(self.step.head())
 
     def suggest_values(self):
         # Set min and max values to spin box when step var is chosen
@@ -337,10 +344,7 @@ class Ui_MainWindow(object):
         time = self.step.index.to_series().diff().value_counts()
         self.Sb_sampling_time.setValue(abs(time.index[0].total_seconds()))
 
-
-
-
-    def write_to_box(self, msg, cls = False):
+    def write_to_box(self, msg, cls=False):
         # TODO Fikse dette, det er hacky
         _translate = QtCore.QCoreApplication.translate
         self.resultBox.setHtml(_translate("MainWindow", f"{msg}"))
@@ -352,40 +356,52 @@ class Ui_MainWindow(object):
         self.StepVarBox.addItems(values)
 
     def calculating(self):
+
         # Getting values
         # TODO Check if values are set
         step_var = str(self.StepVarBox.currentText())
         response_var = str(self.ResponseVarBox.currentText())
         step_from = int(self.sB_from.value())
         step_to = int(self.sB_to.value())
-        step_done = [step_from,step_to]
+        step_done = [step_from, step_to]
         samp = int(self.Sb_sampling_time.value())
-        print(step_var, response_var)
+
 
         # Calculating
-        t = pid.find_step(self.step, step_done, name = step_var)
-        self.step_resp = pid.step_analytics(t, samp,step_done,0.1)
-        self.step_resp.measured_value=response_var
-        self.step_resp.gain=step_var
-        self.step_resp.calculate(band=True)
+        # First run
+        if not self.k:
+            t = pid.find_step(self.step, step_done, name=step_var)
+            self.step_resp = pid.step_analytics(t, samp, step_done, 0.1)
+            self.step_resp.measured_value = response_var
+            self.step_resp.gain = step_var
+
+            self.step_resp.calculate(band=True)
+
+            self.MaxValueSlider.setMaximum(int(self.step_resp.max_val * 1.3))
+            self.MaxValueSlider.setMinimum(int(self.step_resp.max_val * 0.7))
+            self.MaxValueSlider.setSliderPosition(int(self.step_resp.max_val))
+        # Recalc with current values
+        else:
+            max_val = self.sB_max.value()
+            theta = self.sB_theta.value()
+            self.step_resp.re_calculate(max_val, theta)
+
         try:
-            self.sc.axes.plot(self.step_resp.plot_detailed(False))
-        except Exception as e: print(f'error {e}')
-
-        # Result
-        self.plot_calc()
-        self.ResponseValueSlider.setValue(int(self.step_resp.theta))
-        self.MaxValueSlider.setValue(int(self.step_resp.max_val))
-        self.sB_theta.setValue(int(self.step_resp.theta))
-        self.sB_max.setValue(self.step_resp.max_val)
-
-        self.write_to_box(f'Kp = {self.step_resp.k_c} Ti = {self.step_resp.t_i}', cls = True)
-
-
+            #self.sc.axes.plot(self.step_resp.plot_detailed(False))
+            # Result
+            self.plot_calc()
+            self.ResponseValueSlider.setValue(int(self.step_resp.theta))
+            self.MaxValueSlider.setValue(int(self.step_resp.max_val))
+            self.sB_theta.setValue(int(self.step_resp.theta))
+            self.sB_max.setValue(self.step_resp.max_val)
+            self.k = self.step_resp.k_c
+            self.write_to_box(f'Kp = {self.step_resp.k_c} Ti = {self.step_resp.t_i}', cls=True)
+        except Exception as e:
+            print(f'error {e}')
 
 
 
-  #  def update(self, value):
+    #  def update(self, value):
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
@@ -421,7 +437,7 @@ class Ui_MainWindow(object):
     def plot_calc(self):
         # Clear old plot
         self.clear_plot()
-        self.sc.axes.grid(color = 'oldlace')
+        self.sc.axes.grid(color='oldlace')
 
         self.sc.axes.plot(self.step_resp.step_df[self.step_resp.measured_value], color="r")
 
@@ -431,61 +447,85 @@ class Ui_MainWindow(object):
         # Polotting point for when we choose step response
         # # Plotting vertical and hrisontal lines for 63% point
         self.sc.axes.hlines(self.step_resp.prosent63[1], xmin=0,
-                            xmax=(-self.step_resp.prosent63[0]-1) * self.step_resp._sampling_time, color="grey",
+                            xmax=(-self.step_resp.prosent63[0] - 1) * self.step_resp._sampling_time, color="grey",
                             linestyles='dashed')
-        self.sc.axes.vlines((-self.step_resp.prosent63[0]-1) * self.step_resp._sampling_time,
+        self.sc.axes.vlines((-self.step_resp.prosent63[0] - 1) * self.step_resp._sampling_time,
                             ymin=self.step_resp.start[1] * 0.99, ymax=self.step_resp.prosent63[1],
                             color="grey",
                             linestyles='dashed')
-        self.sc.axes.vlines(((-self.step_resp.response-1) * self.step_resp._sampling_time),
+        # THETA
+        self.sc.axes.vlines(((-self.step_resp.response - 1) * self.step_resp._sampling_time),
                             ymin=self.step_resp.start[1] * 0.99,
                             ymax=self.step_resp.step_df.iloc[self.step_resp.response][self.step_resp.measured_value],
                             color="grey", linestyles='dashed')
         self.sc.axes.vlines((self.step_resp.step_df.iloc[self.step_resp.start[0]]["Time"]),
                             ymin=self.step_resp.start[1] * 0.99,
-                            ymax=self.step_resp.step_df.iloc[self.step_resp.response][self.step_resp.measured_value],
-                            color="grey", linestyles='dashed')
-
+                            ymax=self.step_resp.start[1] * 1.1,
+                            color="blue", linestyles='dashdot')
 
         self.sc.axes.axhline(y=self.step_resp.max_val, color='blue', linestyle='-')
         self.sc.axes.axhline(y=self.step_resp.dY * 0.95 + self.step_resp.start[1], color='y', linestyle='-')
-        self.sc.axes.text(-self.step_resp.response * self.step_resp._sampling_time * 1.2, self.step_resp.max_val,
-                          f'Max val = {self.step_resp.max_val} ', fontsize=6, va="top")
-        self.sc.axes.text(-self.step_resp.response * self.step_resp._sampling_time * 1.2,
+        self.sc.axes.text(-self.step_resp.start[1] * self.step_resp._sampling_time * 1.5, self.step_resp.max_val,
+                          f'Max val = {self.step_resp.max_val:.2f} ', fontsize=6, va="top")
+        self.sc.axes.text(-self.step_resp.start[1] * self.step_resp._sampling_time * 1.5,
                           self.step_resp.dY * 0.95 + self.step_resp.start[1],
-                          f'95% = {self.step_resp.dY * 0.95 + self.step_resp.start[1]} ', fontsize=6, va="top")
+                          f'95% = {self.step_resp.dY * 0.95 + self.step_resp.start[1]:.2f} ', fontsize=6, va="top")
         self.sc.axes.text(-self.step_resp.response * self.step_resp._sampling_time * 1.2,
                           self.step_resp.step_df.iloc[self.step_resp.response][self.step_resp.measured_value],
-                          f'{self.step_resp.step_df.iloc[self.step_resp.response][self.step_resp.measured_value]} ',
+                          f'{self.step_resp.step_df.iloc[self.step_resp.response][self.step_resp.measured_value]:.2f} ',
                           fontsize=6, va="center")
         self.sc.axes.text((-self.step_resp.response * self.step_resp._sampling_time) + 5, self.step_resp.start[1],
-                          f'ϴ: {self.step_resp.theta} ', fontsize=6, va="top", ha='right')
+                          f'ϴ: {self.step_resp.theta:.0f} ', fontsize=6, va="top", ha='right')
         self.sc.axes.text(((-self.step_resp.prosent63[0]) * self.step_resp._sampling_time) + 5, self.step_resp.start[1],
-                          f'τ: {self.step_resp.tau}', fontsize=6, va="bottom", ha='right')
+                          f'τ: {self.step_resp.tau:.0f}', fontsize=6, va="bottom", ha='right')
         self.sc.axes.text(((-self.step_resp.prosent63[0]) * self.step_resp._sampling_time) - 5,
-                          self.step_resp.prosent63[1], f'63% value\n{self.step_resp.prosent63[1]}', fontsize=6,
+                          self.step_resp.prosent63[1], f'63% value\n{self.step_resp.prosent63[1]:.2f}', fontsize=6,
                           va="top")
         # Plot cho0sen max point
         # Plot cho0sen max point
         self.sc.axes.plot()
         # Plotting points for local max/min
-        #self.sc.axes.scatter(self.step_resp.step_df.index, self.step_resp.step_df["peak"], c='g')
+        # self.sc.axes.scatter(self.step_resp.step_df.index, self.step_resp.step_df["peak"], c='g')
         self.sc.draw()
 
-
-
-
-
-    def clear(self, te=True):
+    def clear(self):
+        self.sB_from.clear()
+        self.sB_to.clear()
+        self.Sb_sampling_time.clear()
         self.clear_plot()
+        self.StepVarBox.clear()
+        self.ResponseVarBox.clear()
+        self.MaxValueSlider.setMaximum(100)
+        self.MaxValueSlider.setMinimum(0)
+
+
+        self.sB_theta.clear()
+        self.sB_max.clear()
+        self.k = False
+        self.ti = False
+        self.filname = ""
         self.write_to_box("")
+
+    def reset_values(self):
+        self.clear_plot()
+        # self.ResponseValueSlider.setValue(0)
+        self.MaxValueSlider.setMaximum(100)
+        self.MaxValueSlider.setMinimum(0)
+        # self.MaxValueSlider.setValue(0)
+        self.sB_theta.clear()
+        self.sB_max.clear()
+        self.k = False
+        self.ti = False
+        self.step = ""
 
     def clear_plot(self):
         self.sc.axes.cla()
         self.sc.draw()
 
+
 if __name__ == "__main__":
     import sys
+
     app = QtWidgets.QApplication(sys.argv)
     MainWindow = QtWidgets.QMainWindow()
     ui = Ui_MainWindow()

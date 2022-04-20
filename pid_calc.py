@@ -193,6 +193,27 @@ class step_analytics:
         self.find_parameters()
         return self.__str__()
 
+    def re_calculate(self, max, theta):
+        try:
+            self.theta = theta
+            self.max_val = max
+            self.find_delta()
+            self.find_63(0)
+            self.find_tau()
+            # Find tau value
+            self.find_response_for_plot()
+            self.k_m = self.k / self.tau
+
+            # 4 x tau  -> 98% of response
+            tc = self.theta
+
+            # # firstOrder
+            self.k_c = (1 / self.k) * self.tau / (tc + self.theta)
+            self.t_i = min(self.tau, 4 * (tc + self.theta))
+            return self.__str__()
+        except:
+            return "error"
+
     #
 
     def find_gradient(self):
@@ -224,7 +245,7 @@ class step_analytics:
         Time from response to 63%
         :return:
         """
-        self.tau = self.step_df.iloc[self.prosent63[0]]['Time'] - self.step_df.iloc[self.response]['Time']
+        self.tau = self.step_df.iloc[self.prosent63[0]]['Time'] - self.theta - self.step_df.iloc[self.start[0]]["Time"]
 
 
     def find_theta(self):
@@ -236,15 +257,15 @@ class step_analytics:
         self.theta = self.step_df.iloc[self.response]["Time"] - self.step_df.iloc[self.start[0]]["Time"]
 
 
-    def find_63(self):
+    def find_63(self, band = 0.05):
         """
         Find value and index for 63% of step
         :return:
         """
-
+        self.prosent63 = []
         # Find 63% value and keep index and value
         if self.positive_step:
-            dy2 = self.dY-self.dY*0.05
+            dy2 = self.dY-self.dY*band
 
             #self.six = self.dY * 0.63 + self.start[1] - (self.dY*0.05)
             self.six = dy2 * 0.63 + self.start[1]
@@ -267,7 +288,7 @@ class step_analytics:
                     break
 
         else:
-            dy2 = self.dY-self.dY*0.05
+            dy2 = self.dY-self.dY*band
             self.six = dy2 * 0.63 + self.start[1]
             # Loop the df
             for i in range(1, len(self.step_df)):
@@ -337,13 +358,15 @@ class step_analytics:
         else:
             pass
 
-    def find_responce(self):
+    def find_response(self):
         for i in range(-self.start[0], len(self.step_df)):
             if abs(self.start[1] - self.step_df.iloc[-i][self.measured_value]) >= self._factor:
                 self.response = -i
-
-
                 break
+
+    def find_response_for_plot(self):
+        self.response = -int(self.theta/self._sampling_time)
+
 
     def find_parameters(self):
 
@@ -384,7 +407,7 @@ class step_analytics:
 
         # Find where we get the first sign of an response
 
-        self.find_responce()
+        self.find_response()
 
         # Copy index to a column, to make it easier to do math on it
         self.step_df.index = self.step_df["Time"]
