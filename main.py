@@ -1,34 +1,31 @@
 # -*- coding: utf-8 -*-
+# License information
+# PyQt GPL - https://www.gnu.org/licenses/gpl-3.0.en.html
+# Matplotlib, Numpy, Pandas BSD - https://opensource.org/licenses/BSD-3-Clause
+# Python PSF - https://docs.python.org/3/license.html
+# GPL will override BSD licenses
+# For commercial use obtain a commercial license at https://riverbankcomputing.com/commercial/buy
+# NOTE: No need for commercial license for internal use or if
+# the sourcecode is made public.
 
-# Form implementation generated from reading ui file 'main.ui'
-#
-# Created by: PyQt5 UI code generator 5.9.2
-#
-# WARNING! All changes made in this file will be lost!
+# TODO: Gi varsel hvis theta er < 1/10 * samplings tid
 
-# https://www.youtube.com/watch?v=LStHozI2aDo&t=0s
-
-
-from PyQt5 import QtCore, QtGui, QtWidgets
 import matplotlib
-import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
-
-matplotlib.use('Qt5Agg')
 from PyQt5.QtWidgets import QFileDialog
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationToolbar2QT as Navi
-import seaborn as sns
-import pandas as pd
-import sip
-import pid_calc as pid
+import gui_calc as pid
+from PyQt5 import QtCore, QtWidgets
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+matplotlib.use('Qt5Agg')
+
 
 
 class MplCanvas(FigureCanvasQTAgg):
 
     def __init__(self, parent=None, width=5, height=4, dpi=100):
         fig = Figure(figsize=(width, height), dpi=dpi)
+        fig.set_tight_layout('pad')
         self.axes = fig.add_subplot(111)
 
         super(MplCanvas, self).__init__(fig)
@@ -53,8 +50,9 @@ class Ui_MainWindow(object):
         spacerItem = QtWidgets.QSpacerItem(20, 358, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
         self.horizontalLayout_10.addItem(spacerItem)
         self.MaxValueSlider = QtWidgets.QSlider(self.centralwidget)
-        self.MaxValueSlider.setMaximum(100)
-        self.MaxValueSlider.setSliderPosition(95)
+        self.MaxValueSlider.setMaximum(5000)
+        self.MaxValueSlider.setMinimum(1000)
+        self.MaxValueSlider.setSliderPosition(10000)
         self.MaxValueSlider.setOrientation(QtCore.Qt.Vertical)
         self.MaxValueSlider.setObjectName("MaxValueSlider")
         self.horizontalLayout_10.addWidget(self.MaxValueSlider)
@@ -165,7 +163,7 @@ class Ui_MainWindow(object):
         self.horizontalLayout_6.setObjectName("horizontalLayout_6")
         self.sB_theta = QtWidgets.QSpinBox(self.centralwidget)
         self.sB_theta.setMaximumSize(QtCore.QSize(75, 16777215))
-        self.sB_theta.setMaximum(100000)
+        self.sB_theta.setMaximum(10000)
         self.sB_theta.setObjectName("sB_theta")
         self.horizontalLayout_6.addWidget(self.sB_theta)
         self.label = QtWidgets.QLabel(self.centralwidget)
@@ -272,6 +270,8 @@ class Ui_MainWindow(object):
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
+
+
         # Bindings
         self.pB_clear.clicked.connect(self.clear)
         self.actionClose.triggered.connect(self.clear)
@@ -307,31 +307,45 @@ class Ui_MainWindow(object):
         # MainWindow.setCentralWidget(widget)
         self.k = False
         self.ti = False
+        self.first = True
+
 
 
     def reset_onclick(self):
         self.reset_values()
         self.step = pid.read(self.filname)
-        self.calculating()
+
+    # Max value
     def change_sb_max(self):
-        self.sB_max.setValue(int(self.MaxValueSlider.value()))
-        self.calculating()
-    def change_sb_resp(self):
-        self.sB_theta.setValue(self.ResponseValueSlider.value())
+        self.sB_max.setValue((self.MaxValueSlider.value()/100))
         self.calculating()
     def change_slider_max(self):
-        self.MaxValueSlider.setValue(int(self.sB_max.value()))
-        self.calculating()
+        self.MaxValueSlider.setValue(int(self.sB_max.value()*100))
+
+
+    # Theta
+    def change_sb_resp(self):
+        self.sB_theta.setValue(self.ResponseValueSlider.value())
+
     def change_slider_resp(self):
         self.ResponseValueSlider.setValue(self.sB_theta.value())
         self.calculating()
 
+
+
+
     def get_file(self):
+        # If loading a second CSV clear the last one
+        if self.k:
+            self.reset_values()
+            self.clear()
         self.filname = QFileDialog.getOpenFileName(filter="csv (*.csv)")[0]
         if self.filname:
             self.step = pid.read(self.filname)
             self.update_combo_box(self.step.columns)
             self.suggest_values()
+            self.plot_file()
+
 
             # print()
             # self.write_to_box(self.step.head())
@@ -359,43 +373,49 @@ class Ui_MainWindow(object):
 
         # Getting values
         # TODO Check if values are set
-        step_var = str(self.StepVarBox.currentText())
-        response_var = str(self.ResponseVarBox.currentText())
-        step_from = int(self.sB_from.value())
-        step_to = int(self.sB_to.value())
-        step_done = [step_from, step_to]
-        samp = int(self.Sb_sampling_time.value())
+        try:
+            step_var = str(self.StepVarBox.currentText())
+            response_var = str(self.ResponseVarBox.currentText())
+            step_from = int(self.sB_from.value())
+            step_to = int(self.sB_to.value())
+            step_done = [step_from, step_to]
+            samp = int(self.Sb_sampling_time.value())
+        except Exception as e:
+            print(f'error {e}')
 
 
         # Calculating
         # First run
-        if not self.k:
-            t = pid.find_step(self.step, step_done, name=step_var)
-            self.step_resp = pid.step_analytics(t, samp, step_done, 0.1)
-            self.step_resp.measured_value = response_var
-            self.step_resp.gain = step_var
+        try:
+            if not self.k:
+                curr_step = pid.find_step(df = self.step, step = step_done, name=step_var)
+                self.step_resp = pid.step_analytics(df = curr_step, sampling_time = samp, step_from_to = step_done, factor = 0.1)
+                self.step_resp.measured_value = response_var
+                self.step_resp.gain = step_var
 
-            self.step_resp.calculate(band=True)
+                self.step_resp.calculate(band=False)
 
-            self.MaxValueSlider.setMaximum(int(self.step_resp.max_val * 1.3))
-            self.MaxValueSlider.setMinimum(int(self.step_resp.max_val * 0.7))
-            self.MaxValueSlider.setSliderPosition(int(self.step_resp.max_val))
-        # Recalc with current values
-        else:
-            max_val = self.sB_max.value()
-            theta = self.sB_theta.value()
-            self.step_resp.re_calculate(max_val, theta)
+                self.MaxValueSlider.setMaximum(int(self.step_resp.max_val * 1.1*100))
+                self.MaxValueSlider.setMinimum(int(self.step_resp.max_val * 0.9*100))
+                # self.MaxValueSlider.setSliderPosition(int(self.step_resp.max_val))
+            # Recalc with current values
+            else:
+                max_val = self.sB_max.value()
+                theta = self.sB_theta.value()
+                self.step_resp.re_calculate(max_val, theta)
+        except Exception as e:
+            print(f'error {e}')
 
         try:
             #self.sc.axes.plot(self.step_resp.plot_detailed(False))
             # Result
             self.plot_calc()
-            self.ResponseValueSlider.setValue(int(self.step_resp.theta))
-            self.MaxValueSlider.setValue(int(self.step_resp.max_val))
+            # self.ResponseValueSlider.setValue(int(self.step_resp.theta))
+            # self.MaxValueSlider.setValue(int(self.step_resp.max_val))
             self.sB_theta.setValue(int(self.step_resp.theta))
             self.sB_max.setValue(self.step_resp.max_val)
             self.k = self.step_resp.k_c
-            self.write_to_box(f'Kp = {self.step_resp.k_c} Ti = {self.step_resp.t_i}', cls=True)
+            self.write_to_box(f'Kp = {self.step_resp.k_c:.2f} Ti = {self.step_resp.t_i} k = {self.step_resp.dY:.2f} tau = {self.step_resp.dU}', cls=False)
         except Exception as e:
             print(f'error {e}')
 
@@ -439,13 +459,16 @@ class Ui_MainWindow(object):
         self.clear_plot()
         self.sc.axes.grid(color='oldlace')
 
+        # df.loc[df['column_name'] == some_value]
+        x = self.step_resp.step_df.loc[self.step_resp.step_df[self.step_resp.measured_value]==self.step_resp.max_val]
+
         self.sc.axes.plot(self.step_resp.step_df[self.step_resp.measured_value], color="r")
 
         # TODO Add second axies for step?
         # self.sc.axes.plot(self.step_resp.step_df[self.step_resp.gain], color="y")
 
         # Polotting point for when we choose step response
-        # # Plotting vertical and hrisontal lines for 63% point
+        # # Plotting vertical and horisontal lines for 63% point
         self.sc.axes.hlines(self.step_resp.prosent63[1], xmin=0,
                             xmax=(-self.step_resp.prosent63[0] - 1) * self.step_resp._sampling_time, color="grey",
                             linestyles='dashed')
@@ -464,15 +487,16 @@ class Ui_MainWindow(object):
                             color="blue", linestyles='dashdot')
 
         self.sc.axes.axhline(y=self.step_resp.max_val, color='blue', linestyle='-')
-        self.sc.axes.axhline(y=self.step_resp.dY * 0.95 + self.step_resp.start[1], color='y', linestyle='-')
+        # self.sc.axes.axhline(y=self.step_resp.dY * 0.95 + self.step_resp.start[1], color='y', linestyle='-')
         self.sc.axes.text(-self.step_resp.start[1] * self.step_resp._sampling_time * 1.5, self.step_resp.max_val,
                           f'Max val = {self.step_resp.max_val:.2f} ', fontsize=6, va="top")
-        self.sc.axes.text(-self.step_resp.start[1] * self.step_resp._sampling_time * 1.5,
-                          self.step_resp.dY * 0.95 + self.step_resp.start[1],
-                          f'95% = {self.step_resp.dY * 0.95 + self.step_resp.start[1]:.2f} ', fontsize=6, va="top")
+        # self.sc.axes.text(-self.step_resp.start[1] * self.step_resp._sampling_time * 1.5,
+        #                   self.step_resp.dY * 0.95 + self.step_resp.start[1],
+        #                   f'95% = {self.step_resp.dY * 0.95 + self.step_resp.start[1]:.2f} ', fontsize=6, va="top")
+        # Value at Theta
         self.sc.axes.text(-self.step_resp.response * self.step_resp._sampling_time * 1.2,
                           self.step_resp.step_df.iloc[self.step_resp.response][self.step_resp.measured_value],
-                          f'{self.step_resp.step_df.iloc[self.step_resp.response][self.step_resp.measured_value]:.2f} ',
+                          f' {self.step_resp.step_df.iloc[self.step_resp.response][self.step_resp.measured_value]:.2f} ',
                           fontsize=6, va="center")
         self.sc.axes.text((-self.step_resp.response * self.step_resp._sampling_time) + 5, self.step_resp.start[1],
                           f'ϴ: {self.step_resp.theta:.0f} ', fontsize=6, va="top", ha='right')
@@ -481,12 +505,19 @@ class Ui_MainWindow(object):
         self.sc.axes.text(((-self.step_resp.prosent63[0]) * self.step_resp._sampling_time) - 5,
                           self.step_resp.prosent63[1], f'63% value\n{self.step_resp.prosent63[1]:.2f}', fontsize=6,
                           va="top")
-        # Plot cho0sen max point
-        # Plot cho0sen max point
+
         self.sc.axes.plot()
-        # Plotting points for local max/min
+
         # self.sc.axes.scatter(self.step_resp.step_df.index, self.step_resp.step_df["peak"], c='g')
         self.sc.draw()
+
+    def plot_file(self):
+        # Clear old plot
+        self.clear_plot()
+        self.sc.axes.grid(color='oldlace')
+        self.sc.axes.plot(self.step)
+        self.sc.draw()
+
 
     def clear(self):
         self.sB_from.clear()

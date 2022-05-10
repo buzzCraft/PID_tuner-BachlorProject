@@ -317,19 +317,21 @@ class step_analytics:
                 for i in range(len(self.step_df)):
                     if self.step_df.iloc[-i][self.measured_value] < self.step_df.iloc[-i - 1][self.measured_value]:
                         self.max_val = self.step_df.iloc[-i][self.measured_value]
-        elif use_local_max:
-            if self.positive_step:
-                for i in range(len(self.step_df)):
-                    if self.step_df.iloc[-i][self.measured_value] > self.step_df.iloc[-i - 1][self.measured_value]:
-                        self.max_val = self.step_df.iloc[-i][self.measured_value]
-            else:
-                for i in range(len(self.step_df)):
-                    if self.step_df.iloc[-i][self.measured_value] < self.step_df.iloc[-i - 1][self.measured_value]:
-                        self.max_val = self.step_df.iloc[-i][self.measured_value]
+        # elif use_local_max:
+        #     if self.positive_step:
+        #         for i in range(len(self.step_df)):
+        #             if self.step_df.iloc[-i][self.measured_value] > self.step_df.iloc[-i - 1][self.measured_value]:
+        #                 self.max_val = self.step_df.iloc[-i][self.measured_value]
+        #     else:
+        #         for i in range(len(self.step_df)):
+        #             if self.step_df.iloc[-i][self.measured_value] < self.step_df.iloc[-i - 1][self.measured_value]:
+        #                 self.max_val = self.step_df.iloc[-i][self.measured_value]
 
         else:
             if self.positive_step:
                 self.max_val = self.step_df[self.measured_value].max()
+                self.max_val_place = self.step_df[self.measured_value].idxmax()
+                print(self.max_val_place)
             else:
                 self.max_val = self.step_df[self.measured_value].min()
 
@@ -392,7 +394,7 @@ class step_analytics:
         # Find all local maxima
         # Max for positive step
         # Min for negative step
-        self.find_local_peak()
+        # self.find_local_peak()
 
         # Debug var
 
