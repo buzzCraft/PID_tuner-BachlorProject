@@ -6,12 +6,12 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>794</width>
-    <height>820</height>
+    <width>716</width>
+    <height>826</height>
    </rect>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>PI - SIMC tuner</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QHBoxLayout" name="horizontalLayout_21">
@@ -578,7 +578,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>794</width>
+     <width>716</width>
      <height>21</height>
     </rect>
    </property>
@@ -586,17 +586,8 @@
     <property name="title">
      <string>File</string>
     </property>
-    <widget class="QMenu" name="menuExport">
-     <property name="title">
-      <string>Export</string>
-     </property>
-     <addaction name="actionPDF"/>
-     <addaction name="actionCustom"/>
-    </widget>
-    <addaction name="actionOpen"/>
     <addaction name="actionClose"/>
     <addaction name="separator"/>
-    <addaction name="menuExport"/>
     <addaction name="separator"/>
     <addaction name="actionExit"/>
    </widget>
