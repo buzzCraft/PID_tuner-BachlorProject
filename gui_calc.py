@@ -271,7 +271,23 @@ class step_analytics:
             f'Kp : {self.k_c:.3}\n Ti : {self.t_i}'
             f'\nMax = {self.max_val}\n63% value = {self.prosent63[1]}\n'
             f'Start value= {self.start[1]}\n63% time : {self.step_df.iloc[self.prosent63[0]]["Time"]}'
-            f'\nResponse value = {self.step_df.iloc[self.response][self.measured_value]} \nResponse time = {-self.response * self._sampling_time}')
+            f'\nResponse value = {self.step_df.iloc[self.response][self.measured_value]} \nResponse time = {-(self.response - self.start[0]) * self._sampling_time}')
+
+    def get_vars(self):
+        var = {
+            "from": self._step_from,
+            "to": self._step_to,
+            "theta": self.theta,
+            "tau": self.tau,
+            "kp": self.k_c,
+            "ti": self.t_i,
+            "k": self.k,
+            "max": self.max_val,
+            "63%val": self.prosent63[1],
+            "gain" :self.gain,
+            "resp":self.measured_value,
+        }
+        return var
 
     @property
     def factor(self):

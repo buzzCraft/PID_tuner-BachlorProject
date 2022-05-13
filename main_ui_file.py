@@ -9,12 +9,16 @@
 # the sourcecode is made public.
 
 
+# TODO pyinstaller -> https://stackoverflow.com/questions/5458048/how-can-i-make-a-python-script-standalone-executable-to-run-without-any-dependen
+
 import matplotlib
 from matplotlib.figure import Figure
 from PyQt5.QtWidgets import QFileDialog
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationToolbar2QT as Navi
 import gui_calc as pid
 from PyQt5 import QtCore, QtWidgets, uic
+import os
+import report_gen as save_report
 
 matplotlib.use('Qt5Agg')
 
@@ -27,8 +31,10 @@ class MplCanvas(FigureCanvasQTAgg):
 
         super(MplCanvas, self).__init__(self.fig)
 
-    def save(self):
-        self.fig.savefig('line_plot.png')
+    def save(self, path, values):
+        filename = os.path.splitext((os.path.basename(path)))[0]
+        self.fig.savefig(f'./report/img/{filename}.png')
+        save_report.render_html(filename, values)
 
 class Ui(QtWidgets.QMainWindow):
     def __init__(self):
@@ -76,7 +82,9 @@ class Ui(QtWidgets.QMainWindow):
         self.first = True
 
     def save(self):
-        self.sc.save()
+        # prepeare a list of values that will be sent to the html rendrer
+        values = self.step_resp.get_vars()
+        self.sc.save(self.filname, values)
 
     def reset_onclick(self):
         self.reset_values()
@@ -114,6 +122,7 @@ class Ui(QtWidgets.QMainWindow):
             self.plot_file()
 
 
+
             # print()
             # self.write_to_box(self.step.head())
 
@@ -127,10 +136,10 @@ class Ui(QtWidgets.QMainWindow):
 
     def write_to_box(self, msg, cls=False):
         # TODO Fikse dette, det er hacky
-        #_translate = QtCore.QCoreApplication.translate
+
         self.resultBox.clear()
         self.resultBox.insertPlainText(str(msg))
-       # self.resultBox.setHtml(_translate("MainWindow", f"{msg}"))
+
 
     def update_combo_box(self, values):
         self.StepVarBox.clear()
