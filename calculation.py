@@ -1,9 +1,6 @@
-import pandas
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-import plotly.express as px
+
 
 
 ### Les inn fil
@@ -133,31 +130,7 @@ class step_analytics:
         """
         self.theta = self.step_df.iloc[self.response]["Time"] - self.step_df.iloc[self.start[0]]["Time"]
 
-    # def find_63(self, band = 0.05):
-    #     """
-    #     Find value and index for 63% of step
-    #     :return:
-    #     """
-    #     self.prosent63 = []
-    #     # Find 63% value and keep index and value
-    #
-    #     dy2 = self.dY-self.dY*band
-    #     self.six = dy2 * 0.63 + self.start[1]
-    #     # Loop the df
-    #     for i in range(1, len(self.step_df)):
-    #         # If the value for 63% is found
-    #         if self.six <= self.step_df.iloc[-i][self.measured_value]:
-    #
-    #             if (abs(self.step_df.iloc[-i][self.measured_value] - self.six) > abs(
-    #                     self.step_df.iloc[-i + 1][self.measured_value] - self.six)):
-    #                 i = i + 1
-    #
-    #             # Add index to the list
-    #             self.prosent63.append(-i)
-    #             # Add value to the list
-    #             self.prosent63.append(self.step_df.iloc[-i][self.measured_value])
 
-    # break
     def find_precent(self, prct=0.63, band=0.05):
         """
         Find value and index for 63% of step

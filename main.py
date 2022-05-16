@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # License information
 # PyQt GPL - https://www.gnu.org/licenses/gpl-3.0.en.html
-# Matplotlib, Numpy, Pandas BSD - https://opensource.org/licenses/BSD-3-Clause
+# Matplotlib, Numpy, Pandas and Jinja2 BSD - https://opensource.org/licenses/BSD-3-Clause
 # Python PSF - https://docs.python.org/3/license.html
 # GPL will override BSD licenses
 # For commercial use obtain a commercial license at https://riverbankcomputing.com/commercial/buy
@@ -11,16 +11,19 @@
 
 # TODO pyinstaller -> https://stackoverflow.com/questions/5458048/how-can-i-make-a-python-script-standalone-executable-to-run-without-any-dependen
 
+import os
 import matplotlib
 from matplotlib.figure import Figure
-from PyQt5.QtWidgets import QFileDialog
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationToolbar2QT as Navi
-import gui_calc as pid
-from PyQt5 import QtCore, QtWidgets, uic
-import os
+matplotlib.use('Qt5Agg')
+from PyQt5 import QtWidgets, uic
+from PyQt5.QtWidgets import QFileDialog
+
+# Own libs
+import calculation as pid
 import report_gen as save_report
 
-matplotlib.use('Qt5Agg')
+
 
 class MplCanvas(FigureCanvasQTAgg):
 
@@ -32,14 +35,20 @@ class MplCanvas(FigureCanvasQTAgg):
         super(MplCanvas, self).__init__(self.fig)
 
     def save(self, path, values):
-        filename = os.path.splitext((os.path.basename(path)))[0]
-        self.fig.savefig(f'./report/img/{filename}.png')
-        save_report.render_html(filename, values)
+        try:
+            filename = os.path.splitext((os.path.basename(path)))[0]
+            self.fig.savefig(f'./report/img/{filename}.png')
+            save_report.render_html(filename, values)
+            return [True, filename]
+        except Exception as e:
+            return [False, e]
+
+
 
 class Ui(QtWidgets.QMainWindow):
     def __init__(self):
         super(Ui, self).__init__()
-        uic.loadUi('GUI/main3.ui', self)
+        uic.loadUi('GUI/layout.ui', self)
 
         self.show()
 
@@ -73,10 +82,7 @@ class Ui(QtWidgets.QMainWindow):
         self.layout.addWidget(self.sc)
 
         # Create a placeholder widget to hold our toolbar and canvas.
-        # widget = QtWidgets.QWidget()
-        # widget.setLayout(layout)
         self.wi_plot.setLayout(self.layout)
-        # MainWindow.setCentralWidget(widget)
         self.k = False
         self.ti = False
         self.first = True
@@ -84,7 +90,14 @@ class Ui(QtWidgets.QMainWindow):
     def save(self):
         # prepeare a list of values that will be sent to the html rendrer
         values = self.step_resp.get_vars()
-        self.sc.save(self.filname, values)
+        resp = self.sc.save(self.filname, values)
+        if resp[0]:
+            msg = f"Report generated and saved as:\nreport\{resp[1]}.html"
+
+        else:
+            msg = f"Error saving the file: {resp[1]}"
+        self.write_to_box(msg)
+
 
     def reset_onclick(self):
         self.reset_values()
@@ -122,10 +135,6 @@ class Ui(QtWidgets.QMainWindow):
             self.plot_file()
 
 
-
-            # print()
-            # self.write_to_box(self.step.head())
-
     def suggest_values(self):
         # Set min and max values to spin box when step var is chosen
         self.write_to_box(self.step[str(self.StepVarBox.currentText())].max())
@@ -135,7 +144,6 @@ class Ui(QtWidgets.QMainWindow):
         self.Sb_sampling_time.setValue(abs(time.index[0].total_seconds()))
 
     def write_to_box(self, msg, cls=False):
-        # TODO Fikse dette, det er hacky
 
         self.resultBox.clear()
         self.resultBox.insertPlainText(str(msg))
@@ -185,11 +193,8 @@ class Ui(QtWidgets.QMainWindow):
             print(f'error {e}')
 
         try:
-            #self.sc.axes.plot(self.step_resp.plot_detailed(False))
             # Result
             self.plot_calc()
-            # self.ResponseValueSlider.setValue(int(self.step_resp.theta))
-            # self.MaxValueSlider.setValue(int(self.step_resp.max_val))
             self.sB_theta.setValue(int(self.step_resp.theta))
             self.sB_max.setValue(self.step_resp.max_val)
             self.k = self.step_resp.k_c
@@ -207,13 +212,9 @@ class Ui(QtWidgets.QMainWindow):
         self.clear_plot()
         self.sc.axes.grid(color='oldlace')
 
-        # df.loc[df['column_name'] == some_value]
         x = self.step_resp.step_df.loc[self.step_resp.step_df[self.step_resp.measured_value]==self.step_resp.max_val]
 
         self.sc.axes.plot(self.step_resp.step_df[self.step_resp.measured_value], color="r")
-
-        # TODO Add second axies for step?
-        # self.sc.axes.plot(self.step_resp.step_df[self.step_resp.gain], color="y")
 
         # Polotting point for when we choose step response
         # # Plotting vertical and horisontal lines for 63% point
@@ -238,9 +239,6 @@ class Ui(QtWidgets.QMainWindow):
         # self.sc.axes.axhline(y=self.step_resp.dY * 0.95 + self.step_resp.start[1], color='y', linestyle='-')
         self.sc.axes.text(-self.step_resp.start[1] * self.step_resp._sampling_time * 1.5, self.step_resp.max_val,
                           f'Max val = {self.step_resp.max_val:.2f} ', fontsize=6, va="top")
-        # self.sc.axes.text(-self.step_resp.start[1] * self.step_resp._sampling_time * 1.5,
-        #                   self.step_resp.dY * 0.95 + self.step_resp.start[1],
-        #                   f'95% = {self.step_resp.dY * 0.95 + self.step_resp.start[1]:.2f} ', fontsize=6, va="top")
         # Value at Theta
         self.sc.axes.text(-self.step_resp.response * self.step_resp._sampling_time * 1.2,
                           self.step_resp.step_df.iloc[self.step_resp.response][self.step_resp.measured_value],
@@ -255,8 +253,6 @@ class Ui(QtWidgets.QMainWindow):
                           va="top")
 
         self.sc.axes.plot()
-
-        # self.sc.axes.scatter(self.step_resp.step_df.index, self.step_resp.step_df["peak"], c='g')
         self.sc.draw()
 
     def plot_file(self):
@@ -287,10 +283,8 @@ class Ui(QtWidgets.QMainWindow):
 
     def reset_values(self):
         self.clear_plot()
-        # self.ResponseValueSlider.setValue(0)
         self.MaxValueSlider.setMaximum(100)
         self.MaxValueSlider.setMinimum(0)
-        # self.MaxValueSlider.setValue(0)
         self.sB_theta.clear()
         self.sB_max.clear()
         self.k = False
@@ -304,7 +298,9 @@ class Ui(QtWidgets.QMainWindow):
 if __name__ == "__main__":
     import sys
 
+
     app = QtWidgets.QApplication(sys.argv)
     MainWindow = QtWidgets.QMainWindow()
     ui = Ui()
     sys.exit(app.exec_())
+

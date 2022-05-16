@@ -1,3 +1,9 @@
 
 output.pdf
 test.pdf
+*.toc
+/build/
+/dist/
+/images/
+/build.zip
+/output/
