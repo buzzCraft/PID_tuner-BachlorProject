@@ -22,7 +22,7 @@ def render_html(name, values):
         step_to=values["to"],
         gain=values["gain"],
         resp =values["resp"],
-        kp_value=f'{values["kp"]:.2f}',
+        kc_value=f'{values["kc"]:.2f}',
         ti_value=values["ti"],
         theta=values["theta"],
         tau=values["tau"],

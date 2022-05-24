@@ -1,5 +1,10 @@
+# -*- coding: utf-8 -*-
+# License information
+# Pandas - BSD 3 - https://github.com/pandas-dev/pandas/blob/main/LICENSE
+# Numpy - BDS - https://github.com/numpy/numpy/blob/main/LICENSE.txt
+
 import pandas as pd
-import numpy as np
+from numpy import arange as np_arrange
 
 
 
@@ -78,7 +83,7 @@ class step_analytics:
         :returns True on success:
         """
         try:
-            self.step_df["Time"] = (np.arange(len(self.step_df)) * self._sampling_time)[::-1]
+            self.step_df["Time"] = (np_arrange(len(self.step_df)) * self._sampling_time)[::-1]
             ret = True
         except:
             print("Error in changing index")
@@ -241,7 +246,7 @@ class step_analytics:
     def __str__(self):
         return (
             f'Step from {self._step_from} to {self._step_to} \nTheta: {self.theta}\nTau: {self.tau}\nK : {self.k:.2}\nK* : {self.k_m:.2}\n'
-            f'Kp : {self.k_c:.3}\n Ti : {self.t_i}'
+            f'Kc : {self.k_c:.3}\n Ti : {self.t_i}'
             f'\nMax = {self.max_val}\n63% value = {self.prosent63[1]}\n'
             f'Start value= {self.start[1]}\n63% time : {self.step_df.iloc[self.prosent63[0]]["Time"]}'
             f'\nResponse value = {self.step_df.iloc[self.response][self.measured_value]} \nResponse time = {-(self.response - self.start[0]) * self._sampling_time}')
@@ -252,7 +257,7 @@ class step_analytics:
             "to": self._step_to,
             "theta": self.theta,
             "tau": self.tau,
-            "kp": self.k_c,
+            "kc": self.k_c,
             "ti": self.t_i,
             "k": self.k,
             "max": self.max_val,
