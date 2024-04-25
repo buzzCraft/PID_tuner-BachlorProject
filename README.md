@@ -43,6 +43,9 @@ We choose to compile the file with pyinstaller
 pyinstaller --noconfirm --onefile --windowed  "main.py"
 ```
 
+## Screenshot
+![GUI Showcase](/images/Screenshot.png)
+
 
 <!-- LICENSE -->
 ## License
